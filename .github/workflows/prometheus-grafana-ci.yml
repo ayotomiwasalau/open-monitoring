@@ -4,19 +4,7 @@ on:
   push:
     branches: [ main, master ]
     paths: [ 'open-monitoring/**' ]
-  pull_request:
-    branches: [ main, master ]
-    paths: [ 'open-monitoring/**' ]
   workflow_dispatch:
-    inputs:
-      environment:
-        description: 'Environment to deploy to'
-        required: true
-        # default: 'staging'
-        # type: choice
-        # options:
-        # - staging
-        # - production
 
 env:
   NAMESPACE: monitoring
