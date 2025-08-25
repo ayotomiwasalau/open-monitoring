@@ -57,14 +57,14 @@ jobs:
           echo "Upgrading existing release..."
           helm upgrade $RELEASE_NAME prometheus-community/kube-prometheus-stack \
             --namespace $NAMESPACE \
-            -f values.yaml \
+            -f prom-grafana-values.yml \
             --wait \
             --timeout 10m
         else
           echo "Installing new release..."
           helm install $RELEASE_NAME prometheus-community/kube-prometheus-stack \
             --namespace $NAMESPACE \
-            -f values.yaml \
+            -f prom-grafana-values.yml \
             --wait \
             --timeout 10m
         fi
