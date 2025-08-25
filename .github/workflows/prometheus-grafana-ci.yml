@@ -53,6 +53,7 @@ jobs:
     - name: Deploy/Upgrade Prometheus Stack
       run: |
         cd prometheus_grafana
+        cp ../kubeconfig .
         
         # Check if release exists
         if helm list -n $NAMESPACE | grep -q $RELEASE_NAME; then
