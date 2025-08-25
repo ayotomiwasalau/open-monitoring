@@ -60,7 +60,6 @@ jobs:
           echo "Upgrading existing release..."
           helm upgrade $RELEASE_NAME prometheus-community/kube-prometheus-stack \
             --namespace $NAMESPACE \
-            -f prom-grafana-values.yml \
             --version 45.7.1 \
             --wait \
             --timeout 10m
@@ -68,7 +67,6 @@ jobs:
           echo "Installing new release..."
           helm install $RELEASE_NAME prometheus-community/kube-prometheus-stack \
             --namespace $NAMESPACE \
-            -f prom-grafana-values.yml \
             --version 45.7.1 \
             --wait \
             --timeout 10m
