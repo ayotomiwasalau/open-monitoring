@@ -52,7 +52,7 @@ jobs:
         
     - name: Deploy/Upgrade Prometheus Stack
       run: |
-        cd open-monitoring/prometheus_grafana
+        cd prometheus_grafana
         
         # Check if release exists
         if helm list -n $NAMESPACE | grep -q $RELEASE_NAME; then
