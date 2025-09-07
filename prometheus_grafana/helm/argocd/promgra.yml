@@ -14,7 +14,7 @@ spec:
       targetRevision: latest
       helm:
         valueFiles:
-          - $values/open-monitoring/prometheus_grafana/prom-grafana-values.yml
+          - $values/prometheus_grafana/prom-grafana-values.yml
     - repoURL: https://github.com/ayotomiwasalau/open-monitoring.git
       targetRevision: main
       ref: values
