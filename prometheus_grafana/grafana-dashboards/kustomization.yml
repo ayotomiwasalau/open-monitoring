@@ -1,0 +1,10 @@
+# open-monitoring/grafana-dashboards/kustomization.yaml
+namespace: monitoring
+generatorOptions:
+  disableNameSuffixHash: true
+commonLabels:
+  grafana_dashboard: "1"
+configMapGenerator:
+- name: grafana-tm-dashboard
+  files:
+  - tm-dashboard.json=prometheus_grafana/grafana-dashboards/TM-dashboard-1722796886345.json

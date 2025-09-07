@@ -19,6 +19,9 @@ spec:
     - repoURL: https://github.com/ayotomiwasalau/open-monitoring.git
       targetRevision: main
       ref: values
+    - repoURL: https://github.com/ayotomiwasalau/open-monitoring.git
+      targetRevision: main
+      path: prometheus_grafana/grafana-dashboards
   syncPolicy:
     automated:
       prune: true
