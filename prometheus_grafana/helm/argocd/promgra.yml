@@ -1,0 +1,27 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kube-prom-stack
+  namespace: argocd
+spec:
+  project: default
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  sources:
+    - repoURL: https://prometheus-community.github.io/helm-charts
+      chart: kube-prometheus-stack
+      targetRevision: latest
+      helm:
+        valueFiles:
+          - $values/open-monitoring/prometheus_grafana/prom-grafana-values.yml
+    - repoURL: https://github.com/ayotomiwasalau/open-monitoring.git
+      targetRevision: main
+      ref: values
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+      # CreateNamespace works with multi-source from Argo CD v2.6+
+    syncOptions:
+      - CreateNamespace=true

@@ -6,3 +6,7 @@ helm install prometheus prometheus-community/kube-prometheus-stack --namespace m
 kubectl port-forward service/prometheus-grafana --address 0.0.0.0 3001:80 --namespace monitoring &
 kubectl port-forward service/prometheus-kube-prometheus-prometheus --address 0.0.0.0 9090:9090 --namespace monitoring &
 
+todo
+setup app on ci - make the app the wall of vibe coded games
+setup prometheus dashboard
+connect the domain, and make sure app is acessible, and prometheus is accessible
