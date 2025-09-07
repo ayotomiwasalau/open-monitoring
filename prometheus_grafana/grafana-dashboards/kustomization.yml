@@ -7,4 +7,4 @@ commonLabels:
 configMapGenerator:
 - name: grafana-tm-dashboard
   files:
-  - tm-dashboard.json=prometheus_grafana/grafana-dashboards/TM-dashboard-1722796886345.json
+  - tm-dashboard.json=TM-dashboard-1722796886345.json
