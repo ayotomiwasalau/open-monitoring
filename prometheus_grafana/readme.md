@@ -10,3 +10,4 @@ todo
 setup app on ci - make the app the wall of vibe coded games
 setup prometheus dashboard - done
 connect the domain, and make sure app is acessible, and prometheus is accessible
+

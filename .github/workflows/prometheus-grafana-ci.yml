@@ -7,16 +7,15 @@ on:
       - 'open-monitoring/prometheus_grafana/**'
       - '.github/workflows/prometheus-argocd-ci.yml'
   workflow_dispatch:
-    inputs:
-      action:
-        description: 'Action to perform'
-        required: true
-        default: 'deploy'
-        type: choice
-        options:
-        - deploy
-        - sync
-        - delete
+    # inputs:
+    #   action:
+    #     description: 'Action to perform'
+    #     required: true
+    #     default: 'deploy'
+    #     type: choice
+    #     options:
+    #     - deploy
+    #     - delete
 
 env:
   ARGOCD_NAMESPACE: argocd
@@ -26,7 +25,7 @@ env:
 jobs:
   deploy-prometheus-argocd:
     runs-on: ubuntu-latest
-    if: github.event.inputs.action != 'delete' || github.event_name == 'push'
+    # if: github.event.inputs.action != 'delete' || github.event_name == 'push'
     env:
       KUBECONFIG: kubeconfig
     
@@ -52,10 +51,5 @@ jobs:
         
     - name: Apply Argo CD Application
       run: |
-        kubectl apply -f open-monitoring/prometheus_grafana/helm/argocd/promgra.yml
+        kubectl apply -f ./prometheus_grafana/helm/argocd/promgra.yml
         
-    - name: Trigger sync if needed
-      if: github.event.inputs.action == 'sync' || github.event_name == 'push'
-      run: |
-        kubectl patch application $APP_NAME -n $ARGOCD_NAMESPACE --type merge \
-          -p '{"operation": {"initiatedBy": {"username": "github-action"}, "sync": {"revision": "HEAD"}}}'
