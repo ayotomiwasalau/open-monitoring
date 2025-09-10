@@ -57,14 +57,6 @@ jobs:
         echo "Applying NodePort service for external access..."
         kubectl apply -f ./argocd/argocd-server-nodeport.yaml
         
-    - name: Wait for Argo CD components
-      run: |
-        echo "Waiting for Argo CD components to be ready..."
-        kubectl wait --for=condition=available --timeout=300s deployment/argocd-server -n $NAMESPACE
-        kubectl wait --for=condition=available --timeout=300s deployment/argocd-repo-server -n $NAMESPACE
-        kubectl wait --for=condition=available --timeout=300s deployment/argocd-redis -n $NAMESPACE
-        kubectl wait --for=condition=available --timeout=300s deployment/argocd-dex-server -n $NAMESPACE
-
         
     - name: Verify deployment
       run: |
