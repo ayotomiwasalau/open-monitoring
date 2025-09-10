@@ -64,9 +64,7 @@ jobs:
         kubectl wait --for=condition=available --timeout=300s deployment/argocd-repo-server -n $NAMESPACE
         kubectl wait --for=condition=available --timeout=300s deployment/argocd-redis -n $NAMESPACE
         kubectl wait --for=condition=available --timeout=300s deployment/argocd-dex-server -n $NAMESPACE
-        
-        # Wait for application controller
-        kubectl wait --for=condition=ready --timeout=300s statefulset/argocd-application-controller -n $NAMESPACE
+
         
     - name: Verify deployment
       run: |
