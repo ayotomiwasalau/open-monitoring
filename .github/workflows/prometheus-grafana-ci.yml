@@ -48,6 +48,10 @@ jobs:
           echo "ERROR: Argo CD namespace not found. Please install Argo CD first."
           exit 1
         fi
+
+    - name: Create namespace if not exists
+        run: |
+          kubectl create namespace $MONITORING_NAMESPACE || true
         
     - name: Apply Argo CD Application
       run: |
