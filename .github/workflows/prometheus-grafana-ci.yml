@@ -50,8 +50,8 @@ jobs:
         fi
 
     - name: Create namespace if not exists
-        run: |
-          kubectl create namespace $MONITORING_NAMESPACE || true
+      run: |
+        kubectl create namespace $MONITORING_NAMESPACE || true
         
     - name: Apply Argo CD Application
       run: |
