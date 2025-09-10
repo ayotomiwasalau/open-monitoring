@@ -5,15 +5,15 @@ on:
     branches: [ main, master ]
     paths: [ 'open-monitoring/argocd/**' ]
   workflow_dispatch:
-    # inputs:
-    #   action:
-    #     description: 'Action to perform'
-    #     required: true
-    #     default: 'deploy'
-        # type: choice
-        # options:
-        # - deploy
-        # - uninstall
+    inputs:
+      action:
+        description: 'Action to perform'
+        required: true
+        default: 'deploy'
+        type: choice
+        options:
+        - deploy
+        - uninstall
 
 env:
   NAMESPACE: argocd
@@ -21,6 +21,7 @@ env:
 jobs:
   deploy-argocd:
     runs-on: ubuntu-latest
+    if: github.event.inputs.action != 'uninstall' || github.event_name == 'push'
     env:
       KUBECONFIG: kubeconfig
     
@@ -99,3 +100,73 @@ jobs:
       run: |
         echo "=== Node IPs ==="
         kubectl get nodes -o wide | awk '{print $1, $6}' | column -t
+
+  uninstall-argocd:
+    runs-on: ubuntu-latest
+    if: github.event.inputs.action == 'uninstall'
+    env:
+      KUBECONFIG: kubeconfig
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up kubectl
+      uses: azure/setup-kubectl@v3
+      with:
+        version: 'latest'
+    
+    - name: Configure kubectl
+      run: |
+        echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > kubeconfig
+        
+    - name: Validate cluster connection
+      run: |
+        kubectl cluster-info
+        kubectl get nodes
+        
+    - name: Check if Argo CD is installed
+      run: |
+        if kubectl get namespace $NAMESPACE &> /dev/null; then
+          echo "Namespace $NAMESPACE found"
+          kubectl get all -n $NAMESPACE
+        else
+          echo "Namespace $NAMESPACE not found - nothing to uninstall"
+          exit 0
+        fi
+        
+    - name: Remove NodePort service
+      run: |
+        echo "Removing NodePort service..."
+        kubectl delete -f ./argocd/argocd-server-nodeport.yaml --ignore-not-found=true
+        
+    - name: Uninstall Argo CD
+      run: |
+        echo "Uninstalling Argo CD..."
+        kubectl delete -n $NAMESPACE -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml --ignore-not-found=true
+        
+    - name: Clean up custom resources
+      run: |
+        echo "Cleaning up Argo CD custom resources..."
+        # Delete any remaining Argo CD CRDs
+        kubectl delete crd applications.argoproj.io --ignore-not-found=true
+        kubectl delete crd applicationsets.argoproj.io --ignore-not-found=true
+        kubectl delete crd appprojects.argoproj.io --ignore-not-found=true
+        
+    - name: Delete namespace
+      run: |
+        echo "Deleting namespace $NAMESPACE..."
+        kubectl delete namespace $NAMESPACE --ignore-not-found=true --wait=true --timeout=60s
+        
+    - name: Verify uninstallation
+      run: |
+        echo "=== Verification ==="
+        if kubectl get namespace $NAMESPACE &> /dev/null; then
+          echo "WARNING: Namespace $NAMESPACE still exists!"
+          kubectl get all -n $NAMESPACE
+        else
+          echo "SUCCESS: Namespace $NAMESPACE has been removed"
+        fi
+        
+        echo "=== Checking for remaining Argo CD resources ==="
+        kubectl get crd | grep argoproj || echo "No Argo CD CRDs found" 
