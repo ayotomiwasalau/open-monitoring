@@ -1,0 +1,172 @@
+name: Deploy Argo CD
+
+on:
+  push:
+    branches: [ main, master ]
+    paths: [ 'open-monitoring/argocd/**' ]
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to perform'
+        required: true
+        default: 'deploy'
+        type: choice
+        options:
+        - deploy
+        - uninstall
+
+env:
+  NAMESPACE: argocd
+
+jobs:
+  deploy-argocd:
+    runs-on: ubuntu-latest
+    if: github.event.inputs.action != 'uninstall' || github.event_name == 'push'
+    env:
+      KUBECONFIG: kubeconfig
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up kubectl
+      uses: azure/setup-kubectl@v3
+      with:
+        version: 'latest'
+    
+    - name: Configure kubectl
+      run: |
+        echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > kubeconfig
+        
+    - name: Validate cluster connection
+      run: |
+        kubectl cluster-info
+        kubectl get nodes
+        
+    - name: Create namespace
+      run: |
+        kubectl create namespace $NAMESPACE --dry-run=client -o yaml | kubectl apply -f -
+        
+    - name: Install Argo CD
+      run: |
+        echo "Installing Argo CD..."
+        kubectl apply -n $NAMESPACE -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+        
+    - name: Apply NodePort service
+      run: |
+        echo "Applying NodePort service for external access..."
+        kubectl apply -f open-monitoring/argocd/argocd-server-nodeport.yaml
+        
+    - name: Wait for Argo CD components
+      run: |
+        echo "Waiting for Argo CD components to be ready..."
+        kubectl wait --for=condition=available --timeout=300s deployment/argocd-server -n $NAMESPACE
+        kubectl wait --for=condition=available --timeout=300s deployment/argocd-repo-server -n $NAMESPACE
+        kubectl wait --for=condition=available --timeout=300s deployment/argocd-redis -n $NAMESPACE
+        kubectl wait --for=condition=available --timeout=300s deployment/argocd-dex-server -n $NAMESPACE
+        
+        # Wait for application controller
+        kubectl wait --for=condition=ready --timeout=300s statefulset/argocd-application-controller -n $NAMESPACE
+        
+    - name: Verify deployment
+      run: |
+        echo "=== Pod Status ==="
+        kubectl get pods -n $NAMESPACE
+        echo "=== Service Status ==="
+        kubectl get svc -n $NAMESPACE
+        echo "=== NodePort Service Details ==="
+        kubectl get svc argocd-server-nodeport -n $NAMESPACE -o wide
+        
+    - name: Get initial admin password
+      run: |
+        echo "=== Argo CD Access Information ==="
+        echo "Retrieving initial admin password..."
+        ARGOCD_PASSWORD=$(kubectl -n $NAMESPACE get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d)
+        echo "Initial admin password retrieved (stored as GitHub secret)"
+        echo "::add-mask::$ARGOCD_PASSWORD"
+        
+        # Get NodePort details
+        HTTP_PORT=$(kubectl get svc argocd-server-nodeport -n $NAMESPACE -o jsonpath='{.spec.ports[?(@.name=="http")].nodePort}')
+        HTTPS_PORT=$(kubectl get svc argocd-server-nodeport -n $NAMESPACE -o jsonpath='{.spec.ports[?(@.name=="https")].nodePort}')
+        
+        echo "=== Access URLs ==="
+        echo "HTTP NodePort: $HTTP_PORT"
+        echo "HTTPS NodePort: $HTTPS_PORT"
+        echo "Access Argo CD at: http://<NODE-IP>:$HTTP_PORT or https://<NODE-IP>:$HTTPS_PORT"
+        echo "Username: admin"
+        echo "Password: Check the argocd-initial-admin-secret in the $NAMESPACE namespace"
+        
+    - name: List node IPs
+      run: |
+        echo "=== Node IPs ==="
+        kubectl get nodes -o wide | awk '{print $1, $6}' | column -t
+
+  uninstall-argocd:
+    runs-on: ubuntu-latest
+    if: github.event.inputs.action == 'uninstall'
+    env:
+      KUBECONFIG: kubeconfig
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up kubectl
+      uses: azure/setup-kubectl@v3
+      with:
+        version: 'latest'
+    
+    - name: Configure kubectl
+      run: |
+        echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > kubeconfig
+        
+    - name: Validate cluster connection
+      run: |
+        kubectl cluster-info
+        kubectl get nodes
+        
+    - name: Check if Argo CD is installed
+      run: |
+        if kubectl get namespace $NAMESPACE &> /dev/null; then
+          echo "Namespace $NAMESPACE found"
+          kubectl get all -n $NAMESPACE
+        else
+          echo "Namespace $NAMESPACE not found - nothing to uninstall"
+          exit 0
+        fi
+        
+    - name: Remove NodePort service
+      run: |
+        echo "Removing NodePort service..."
+        kubectl delete -f open-monitoring/argocd/argocd-server-nodeport.yaml --ignore-not-found=true
+        
+    - name: Uninstall Argo CD
+      run: |
+        echo "Uninstalling Argo CD..."
+        kubectl delete -n $NAMESPACE -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml --ignore-not-found=true
+        
+    - name: Clean up custom resources
+      run: |
+        echo "Cleaning up Argo CD custom resources..."
+        # Delete any remaining Argo CD CRDs
+        kubectl delete crd applications.argoproj.io --ignore-not-found=true
+        kubectl delete crd applicationsets.argoproj.io --ignore-not-found=true
+        kubectl delete crd appprojects.argoproj.io --ignore-not-found=true
+        
+    - name: Delete namespace
+      run: |
+        echo "Deleting namespace $NAMESPACE..."
+        kubectl delete namespace $NAMESPACE --ignore-not-found=true --wait=true --timeout=60s
+        
+    - name: Verify uninstallation
+      run: |
+        echo "=== Verification ==="
+        if kubectl get namespace $NAMESPACE &> /dev/null; then
+          echo "WARNING: Namespace $NAMESPACE still exists!"
+          kubectl get all -n $NAMESPACE
+        else
+          echo "SUCCESS: Namespace $NAMESPACE has been removed"
+        fi
+        
+        echo "=== Checking for remaining Argo CD resources ==="
+        kubectl get crd | grep argoproj || echo "No Argo CD CRDs found" 
